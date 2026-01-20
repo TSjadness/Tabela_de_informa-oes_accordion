@@ -184,83 +184,26 @@ type AccordionFormProps = {
   accordionId?: number;
 };
 
-function generateRandomColor(): string {
-  const colors = [
-    "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981",
-    "#06b6d4", "#f97316", "#6366f1", "#14b8a6", "#ef4444",
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-// ✅ Converte qualquer coisa para number
-function toNumber(id: any): number {
-  if (typeof id === 'number') return id;
-  if (typeof id === 'string') {
-    const parsed = parseInt(id, 10);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-}
-
-// ✅ Busca próximo ID de forma ULTRA ROBUSTA
-async function getNextId(resource: string): Promise<number> {
-  try {
-    const response = await fetch(`http://localhost:3001/${resource}`);
-    if (!response.ok) {
-      console.log(`⚠️ Recurso ${resource} vazio, iniciando com ID 1`);
-      return 1;
-    }
-
-    const data = await response.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      console.log(`⚠️ Array ${resource} vazio, iniciando com ID 1`);
-      return 1;
-    }
-
-    // Converte TODOS os IDs para number
-    const ids = data
-      .map((item: any) => toNumber(item.id))
-      .filter((id: number) => id > 0);
-    
-    if (ids.length === 0) {
-      console.log(`⚠️ Nenhum ID válido em ${resource}, iniciando com ID 1`);
-      return 1;
-    }
-
-    const nextId = Math.max(...ids) + 1;
-    console.log(`✅ Próximo ID para ${resource}: ${nextId}`);
-    return nextId;
-  } catch (error) {
-    console.error(`❌ Erro ao buscar próximo ID para ${resource}:`, error);
-    return 1;
-  }
-}
-
 export default function AccordionForm({ accordionId }: AccordionFormProps) {
   const router = useRouter();
-  const { data, addAccordion, updateAccordion, getAccordionById, refreshData } = useAccordion();
+  const { data, addAccordion, updateAccordion, getAccordionById, addCategory } = useAccordion();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [categoryId, setCategoryId] = useState(data.categories[0]?.id ?? 0);
   const [categoryType, setCategoryType] = useState<"existing" | "new">("existing");
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [authorType, setAuthorType] = useState<"existing" | "new">("existing");
-  const [authorId, setAuthorId] = useState<number>(data.authors[0]?.id ?? 0);
-  const [newAuthorName, setNewAuthorName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = !!accordionId;
 
   useEffect(() => {
     if (isEditMode && accordionId) {
-      const result = getAccordionById(accordionId);
-      if (result) {
-        const { accordion, categoryId: catId } = result;
+      const accordion = getAccordionById(accordionId);
+      if (accordion) {
         setTitle(accordion.title);
         setContent(accordion.content);
-        setCategoryId(catId);
-        setAuthorId(accordion.authorId);
+        setCategoryId(accordion.categoryId);
       }
     }
   }, [accordionId, isEditMode, getAccordionById]);
@@ -286,9 +229,7 @@ export default function AccordionForm({ accordionId }: AccordionFormProps) {
 
     try {
       let finalCategoryId = categoryId;
-      let finalAuthorId = authorId;
 
-      // ✅ CRIAR NOVA CATEGORIA
       if (categoryType === "new") {
         if (!newCategoryName.trim()) {
           toast.error("Digite o nome da nova categoria");
@@ -296,132 +237,42 @@ export default function AccordionForm({ accordionId }: AccordionFormProps) {
           return;
         }
 
-        const newCategoryId = await getNextId("categories");
-
-        const newCat = {
-          id: newCategoryId,
+        await addCategory({
           name: newCategoryName.trim(),
-          accordions: [],
-        };
-
-        console.log("📁 Criando categoria:", newCat);
-
-        const response = await fetch("http://localhost:3001/categories", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newCat),
+          description: "",
         });
 
-        if (!response.ok) {
-          throw new Error("Erro ao criar categoria");
-        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
-        const created = await response.json();
-        console.log("✅ Categoria criada:", created);
-
-        finalCategoryId = toNumber(created.id);
+        const response = await fetch("http://localhost:3001/categories");
+        const categories = await response.json();
+        const newCategory = categories.find((c: any) => c.name === newCategoryName.trim());
         
-        // ✅ FORÇA REFRESH para garantir que categoria existe
-        await refreshData();
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (newCategory) {
+          finalCategoryId = newCategory.id;
+        }
       }
 
-      // ✅ CRIAR NOVO AUTOR
-      if (authorType === "new") {
-        if (!newAuthorName.trim()) {
-          toast.error("Digite o nome do novo autor");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const newAuthorId = await getNextId("authors");
-
-        const newAuth = {
-          id: newAuthorId,
-          name: newAuthorName.trim(),
-          color: generateRandomColor(),
-        };
-
-        console.log("👤 Criando autor:", newAuth);
-
-        const response = await fetch("http://localhost:3001/authors", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newAuth),
-        });
-
-        if (!response.ok) {
-          throw new Error("Erro ao criar autor");
-        }
-
-        const created = await response.json();
-        console.log("✅ Autor criado:", created);
-
-        finalAuthorId = toNumber(created.id);
-        
-        // ✅ FORÇA REFRESH para garantir que autor existe
-        await refreshData();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-
-      // ✅ EDITAR ACCORDION
       if (isEditMode && accordionId) {
-        console.log("✏️ Editando accordion:", accordionId);
-        
-        await updateAccordion(accordionId, finalCategoryId, {
+        await updateAccordion(accordionId, {
           title: title.trim(),
           content: content.trim(),
-          authorId: finalAuthorId,
+          categoryId: finalCategoryId,
         });
-        
         toast.success("Item atualizado com sucesso!");
-      } 
-      // ✅ CRIAR NOVO ACCORDION
-      else {
-        console.log(`📝 Criando accordion na categoria ${finalCategoryId}`);
-        
-        // ✅ FORÇA REFRESH antes de buscar a categoria
-        await refreshData();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
-        // Busca a categoria atualizada DIRETO da API
-        const catResponse = await fetch(`http://localhost:3001/categories/${finalCategoryId}`);
-        
-        if (!catResponse.ok) {
-          throw new Error("Categoria não encontrada");
-        }
-
-        const category = await catResponse.json();
-
-        // Gera ID único dentro da categoria
-        let newAccordionId = 1;
-        if (category.accordions && category.accordions.length > 0) {
-          const existingIds = category.accordions
-            .map((a: any) => toNumber(a.id))
-            .filter((id: number) => id > 0);
-          
-          newAccordionId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
-        }
-
-        console.log(`🆕 Novo accordion ID: ${newAccordionId}`);
-
-        await addAccordion(finalCategoryId, {
-          id: newAccordionId,
+      } else {
+        await addAccordion({
           title: title.trim(),
           content: content.trim(),
-          authorId: finalAuthorId,
+          categoryId: finalCategoryId,
         });
-        
         toast.success("Item criado com sucesso!");
       }
 
-      // ✅ Força atualização e redireciona
-      await refreshData();
-      await new Promise((resolve) => setTimeout(resolve, 500));
       router.push("/");
       router.refresh();
     } catch (error: any) {
-      console.error("❌ Erro ao salvar:", error);
+      console.error("Erro ao salvar:", error);
       toast.error(error.message || "Erro ao salvar");
     } finally {
       setIsSubmitting(false);
@@ -436,7 +287,11 @@ export default function AccordionForm({ accordionId }: AccordionFormProps) {
     >
       <Title>{isEditMode ? "Editar Item" : "Novo Item"}</Title>
 
-      <Field initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+      <Field
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+      >
         <Label htmlFor="categoryType">Categoria *</Label>
         <Row>
           <Select
@@ -450,9 +305,15 @@ export default function AccordionForm({ accordionId }: AccordionFormProps) {
           </Select>
 
           {categoryType === "existing" && (
-            <Select value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value))} disabled={isSubmitting}>
+            <Select
+              value={categoryId}
+              onChange={(e) => setCategoryId(Number(e.target.value))}
+              disabled={isSubmitting}
+            >
               {data.categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
               ))}
             </Select>
           )}
@@ -468,55 +329,54 @@ export default function AccordionForm({ accordionId }: AccordionFormProps) {
         </Row>
       </Field>
 
-      <Field initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+      <Field
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.2 }}
+      >
         <Label htmlFor="title">Título *</Label>
-        <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Digite o título" disabled={isSubmitting} />
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Digite o título"
+          disabled={isSubmitting}
+        />
       </Field>
 
-      <Field initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+      <Field
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.3 }}
+      >
         <Label htmlFor="content">Conteúdo *</Label>
-        <Textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Digite o conteúdo" disabled={isSubmitting} />
-      </Field>
-
-      <Field initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-        <Label htmlFor="authorType">Autor *</Label>
-        <Row>
-          <Select
-            id="authorType"
-            value={authorType}
-            onChange={(e) => setAuthorType(e.target.value as "existing" | "new")}
-            disabled={isSubmitting}
-          >
-            <option value="existing">Selecionar existente</option>
-            <option value="new">Adicionar novo</option>
-          </Select>
-
-          {authorType === "existing" && (
-            <Select value={authorId} onChange={(e) => setAuthorId(Number(e.target.value))} disabled={isSubmitting}>
-              {data.authors.map((author) => (
-                <option key={author.id} value={author.id}>{author.name}</option>
-              ))}
-            </Select>
-          )}
-
-          {authorType === "new" && (
-            <Input
-              value={newAuthorName}
-              onChange={(e) => setNewAuthorName(e.target.value)}
-              placeholder="Nome do novo autor"
-              disabled={isSubmitting}
-            />
-          )}
-        </Row>
+        <Textarea
+          id="content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Digite o conteúdo"
+          disabled={isSubmitting}
+        />
       </Field>
 
       <ButtonGroup>
         {isEditMode && (
-          <Button variant="secondary" onClick={handleCancel} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={isSubmitting}>
+          <Button
+            variant="secondary"
+            onClick={handleCancel}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={isSubmitting}
+          >
             <FiX size={18} /> Cancelar
           </Button>
         )}
-        <Button onClick={handleSubmit} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={isSubmitting}>
+        <Button
+          onClick={handleSubmit}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          disabled={isSubmitting}
+        >
           <FiSave size={18} />
           {isSubmitting ? "Salvando..." : isEditMode ? "Atualizar Item" : "Salvar Item"}
         </Button>
@@ -524,4 +384,3 @@ export default function AccordionForm({ accordionId }: AccordionFormProps) {
     </Container>
   );
 }
-

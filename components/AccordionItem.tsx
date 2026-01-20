@@ -11,9 +11,10 @@ import ModalConfirm from "./ModalConfirm";
 
 type Accordion = {
   id: number;
+  categoryId: number;
   title: string;
   content: string;
-  authorId: number;
+  createdAt?: string;
 };
 
 const Wrapper = styled(motion.div)`
@@ -54,17 +55,6 @@ const Title = styled.span`
   text-align: left;
   color: #1e3a8a;
   font-size: 0.95rem;
-`;
-
-const AuthorBadge = styled.span<{ color: string }>`
-  background: ${({ color }) => color}15;
-  border: 1px solid ${({ color }) => color}40;
-  color: ${({ color }) => color};
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
 `;
 
 const Actions = styled.div`
@@ -110,21 +100,13 @@ const Content = styled.div`
   font-size: 0.95rem;
 `;
 
-export default function AccordionItem({
-  accordion,
-}: {
-  accordion?: Accordion;
-}) {
-  const { removeAccordion, data } = useAccordion();
+export default function AccordionItem({ accordion }: { accordion?: Accordion }) {
+  const { removeAccordion } = useAccordion();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   if (!accordion) return null;
-
-  const author = data.authors.find((a) => a.id === accordion.authorId);
-  const authorName = author?.name || "Desconhecido";
-  const authorColor = author?.color || "#64748b";
 
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
@@ -144,7 +126,7 @@ export default function AccordionItem({
 
   function confirmDelete() {
     removeAccordion(accordion.id);
-    toast.success("removido com sucesso! ");
+    toast.success("Removido com sucesso!");
     setShowDeleteModal(false);
   }
 
@@ -158,8 +140,6 @@ export default function AccordionItem({
       >
         <Header open={open} onClick={() => setOpen(!open)}>
           <Title>{accordion.title}</Title>
-
-          <AuthorBadge color={authorColor}>{authorName}</AuthorBadge>
 
           <Actions onClick={(e) => e.stopPropagation()}>
             <IconButton
@@ -233,4 +213,3 @@ export default function AccordionItem({
     </>
   );
 }
-

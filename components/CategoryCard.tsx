@@ -13,14 +13,17 @@ import { useAccordion } from "../context/AccordionContext";
 
 type Accordion = {
   id: number;
+  categoryId: number;
   title: string;
   content: string;
-  authorId: number;
+  createdAt?: string;
 };
 
 type Category = {
   id: number;
   name: string;
+  description?: string;
+  createdAt?: string;
   accordions: Accordion[];
 };
 
@@ -107,8 +110,11 @@ const AdminActions = styled.div`
 `;
 
 const AdminButton = styled(motion.button)<{ variant?: "danger" }>`
-  background: ${({ variant }) => variant === "danger" ? "rgba(239, 68, 68, 0.1)" : "rgba(59, 130, 246, 0.1)"};
-  border: 1px solid ${({ variant }) => variant === "danger" ? "rgba(239, 68, 68, 0.3)" : "rgba(59, 130, 246, 0.3)"};
+  background: ${({ variant }) =>
+    variant === "danger" ? "rgba(239, 68, 68, 0.1)" : "rgba(59, 130, 246, 0.1)"};
+  border: 1px solid
+    ${({ variant }) =>
+      variant === "danger" ? "rgba(239, 68, 68, 0.3)" : "rgba(59, 130, 246, 0.3)"};
   color: ${({ variant }) => (variant === "danger" ? "#dc2626" : "#2563eb")};
   padding: 8px;
   border-radius: 8px;
@@ -119,7 +125,8 @@ const AdminButton = styled(motion.button)<{ variant?: "danger" }>`
   transition: all 0.3s;
 
   &:hover {
-    background: ${({ variant }) => variant === "danger" ? "rgba(239, 68, 68, 0.2)" : "rgba(59, 130, 246, 0.2)"};
+    background: ${({ variant }) =>
+      variant === "danger" ? "rgba(239, 68, 68, 0.2)" : "rgba(59, 130, 246, 0.2)"};
   }
 
   &:disabled {
@@ -220,19 +227,9 @@ const AddButton = styled(Link)`
   }
 `;
 
-// ✅ Converte qualquer coisa para number
-function toNumber(id: any): number {
-  if (typeof id === 'number') return id;
-  if (typeof id === 'string') {
-    const parsed = parseInt(id, 10);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-}
-
 export default function CategoryCard({ category }: { category: Category }) {
   const { isAdmin } = useAdmin();
-  const { refreshData } = useAccordion();
+  const { removeCategory, updateCategory } = useAccordion();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(category.name);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -254,39 +251,11 @@ export default function CategoryCard({ category }: { category: Category }) {
     setIsLoading(true);
 
     try {
-      const categoryId = toNumber(category.id);
-
-      const updatedCategory = {
-        id: categoryId,
-        name: editedName.trim(),
-        accordions: category.accordions.map((acc) => ({
-          id: toNumber(acc.id),
-          title: acc.title,
-          content: acc.content,
-          authorId: toNumber(acc.authorId),
-        })),
-      };
-
-      console.log("✏️ Atualizando categoria:", updatedCategory);
-
-      const response = await fetch(`http://localhost:3001/categories/${categoryId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedCategory),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao atualizar categoria: ${response.status}`);
-      }
-
-      console.log("✅ Categoria atualizada");
-
+      await updateCategory(category.id, { name: editedName.trim() });
       toast.success("Categoria atualizada com sucesso!");
       setIsEditing(false);
-
-      await refreshData();
     } catch (error: any) {
-      console.error("❌ Erro ao atualizar categoria:", error);
+      console.error("Erro ao atualizar categoria:", error);
       toast.error(error.message || "Erro ao atualizar categoria");
     } finally {
       setIsLoading(false);
@@ -308,34 +277,11 @@ export default function CategoryCard({ category }: { category: Category }) {
     setIsLoading(true);
 
     try {
-      const categoryId = toNumber(category.id);
-
-      console.log(`🗑️ Deletando categoria ${categoryId}`);
-
-      // Verifica se existe
-      const checkResponse = await fetch(`http://localhost:3001/categories/${categoryId}`);
-
-      if (!checkResponse.ok) {
-        throw new Error("Categoria não encontrada");
-      }
-
-      // Deleta
-      const response = await fetch(`http://localhost:3001/categories/${categoryId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro ao excluir categoria: ${response.status}`);
-      }
-
-      console.log("✅ Categoria deletada");
-
+      await removeCategory(category.id);
       toast.success("Categoria excluída com sucesso!");
       setShowDeleteModal(false);
-
-      await refreshData();
     } catch (error: any) {
-      console.error("❌ Erro ao excluir categoria:", error);
+      console.error("Erro ao excluir categoria:", error);
       toast.error(error.message || "Erro ao excluir categoria");
     } finally {
       setIsLoading(false);
@@ -344,7 +290,12 @@ export default function CategoryCard({ category }: { category: Category }) {
 
   return (
     <>
-      <Card initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 300 }}>
+      <Card
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ y: -4 }}
+        transition={{ type: "spring", stiffness: 300 }}
+      >
         <Header>
           <IconWrapper>
             <FiFolder size={20} />
@@ -364,10 +315,20 @@ export default function CategoryCard({ category }: { category: Category }) {
                   disabled={isLoading}
                   autoFocus
                 />
-                <SaveButton onClick={handleSave} disabled={isLoading} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <SaveButton
+                  onClick={handleSave}
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   {isLoading ? "..." : "Salvar"}
                 </SaveButton>
-                <CancelButton onClick={handleCancel} disabled={isLoading} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <CancelButton
+                  onClick={handleCancel}
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   Cancelar
                 </CancelButton>
               </>
@@ -380,10 +341,23 @@ export default function CategoryCard({ category }: { category: Category }) {
 
           {isAdmin && !isEditing && (
             <AdminActions>
-              <AdminButton onClick={handleEdit} disabled={isLoading} title="Editar categoria" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <AdminButton
+                onClick={handleEdit}
+                disabled={isLoading}
+                title="Editar categoria"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
                 <FiEdit2 size={16} />
               </AdminButton>
-              <AdminButton variant="danger" onClick={() => setShowDeleteModal(true)} disabled={isLoading} title="Excluir categoria" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <AdminButton
+                variant="danger"
+                onClick={() => setShowDeleteModal(true)}
+                disabled={isLoading}
+                title="Excluir categoria"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
                 <FiTrash2 size={16} />
               </AdminButton>
             </AdminActions>

@@ -296,12 +296,12 @@ export default function Home() {
 
   const categories = useMemo(
     () => filteredCategories(search),
-    [search, filteredCategories],
+    [search, filteredCategories]
   );
 
   const totalAccordions = useMemo(
     () => data.categories.reduce((acc, cat) => acc + cat.accordions.length, 0),
-    [data.categories],
+    [data.categories]
   );
 
   if (loading) {
@@ -469,14 +469,6 @@ export default function Home() {
             >
               <StatValue>{totalAccordions}</StatValue>
               <StatLabel>Total de cartelas</StatLabel>
-            </StatCard>
-
-            <StatCard
-              whileHover={{ y: -4 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <StatValue>{data.authors.length}</StatValue>
-              <StatLabel>Autores</StatLabel>
             </StatCard>
           </StatsBar>
         </Header>

@@ -1,4 +1,4 @@
-// File: C:\Users\jadso\Downloads\accordion-knowledge-base\app\accordion\page.tsx
+// File: C:\trabalhos\freela\Tabela_de_informa-oes_accordion\app\accordion\page.tsx
 import * as entry from '../../../../app/accordion/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

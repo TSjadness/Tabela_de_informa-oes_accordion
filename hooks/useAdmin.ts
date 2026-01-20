@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export function useAdmin() {
-  const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -15,8 +13,7 @@ export function useAdmin() {
   const logout = () => {
     localStorage.removeItem("adminAuth");
     setIsAdmin(false);
-    router.push("/");
-    router.refresh();
+    window.location.href = "/";
   };
 
   return { isAdmin, logout };
