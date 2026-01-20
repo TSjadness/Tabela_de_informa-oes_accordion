@@ -1,4 +1,4 @@
 {
-  "/accordion/page": "app/accordion/page.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/admin/login/page": "app/admin/login/page.js"
 }

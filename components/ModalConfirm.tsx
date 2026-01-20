@@ -11,7 +11,7 @@ type ModalConfirmProps = {
   onClose: () => void;
 };
 
-// ✅ CORRIGIDO: "redgba" -> "rgba"
+
 const Overlay = styled(motion.div)`
   position: fixed;
   inset: 0;

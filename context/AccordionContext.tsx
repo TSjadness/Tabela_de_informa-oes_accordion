@@ -23,6 +23,7 @@ type Category = {
   id: number;
   name: string;
   description?: string;
+  pinned?: boolean;
   createdAt?: string;
 };
 
@@ -47,14 +48,23 @@ type AccordionContextType = {
   loading: boolean;
   refreshData: () => Promise<void>;
   filteredCategories: (query: string) => CategoryWithAccordions[];
-  addAccordion: (accordion: Omit<Accordion, "id" | "createdAt">) => Promise<void>;
+  addAccordion: (
+    accordion: Omit<Accordion, "id" | "createdAt">,
+  ) => Promise<void>;
   removeAccordion: (accordionId: number) => Promise<void>;
-  updateAccordion: (accordionId: number, updates: Partial<Omit<Accordion, "id" | "createdAt">>) => Promise<void>;
+  updateAccordion: (
+    accordionId: number,
+    updates: Partial<Omit<Accordion, "id" | "createdAt">>,
+  ) => Promise<void>;
   addCategory: (category: Omit<Category, "id" | "createdAt">) => Promise<void>;
   removeCategory: (categoryId: number) => Promise<void>;
-  updateCategory: (categoryId: number, updates: Partial<Omit<Category, "id" | "createdAt">>) => Promise<void>;
+  updateCategory: (
+    categoryId: number,
+    updates: Partial<Omit<Category, "id" | "createdAt">>,
+  ) => Promise<void>;
   addAuthor: (author: Omit<Author, "id" | "createdAt">) => Promise<void>;
   getAccordionById: (accordionId: number) => Accordion | null;
+  togglePinCategory: (categoryId: number) => Promise<void>;
 };
 
 const Context = createContext<AccordionContextType | null>(null);
@@ -70,14 +80,24 @@ function toNumber(id: any): number {
   return 0;
 }
 
-async function cleanInvalidAccordions(accordions: Accordion[], categoryIds: number[], authorIds: number[]): Promise<void> {
+async function cleanInvalidAccordions(
+  accordions: Accordion[],
+  categoryIds: number[],
+  authorIds: number[],
+): Promise<void> {
   const invalidAccordions = accordions.filter(
-    (acc) => !categoryIds.includes(acc.categoryId) || !authorIds.includes(acc.authorId) || acc.categoryId === 0 || acc.authorId === 0
+    (acc) =>
+      !categoryIds.includes(acc.categoryId) ||
+      !authorIds.includes(acc.authorId) ||
+      acc.categoryId === 0 ||
+      acc.authorId === 0,
   );
 
   if (invalidAccordions.length > 0) {
-    console.warn(`🧹 Limpando ${invalidAccordions.length} accordions inválidos...`);
-    
+    console.warn(
+      `🧹 Limpando ${invalidAccordions.length} accordions inválidos...`,
+    );
+
     await Promise.all(
       invalidAccordions.map(async (acc) => {
         try {
@@ -85,7 +105,7 @@ async function cleanInvalidAccordions(accordions: Accordion[], categoryIds: numb
         } catch (error) {
           console.error(`Erro ao deletar accordion inválido ${acc.id}:`, error);
         }
-      })
+      }),
     );
   }
 }
@@ -118,24 +138,26 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
       await cleanInvalidAccordions(accordionsData, categoryIds, authorIds);
 
       const validAccordions = accordionsData.filter(
-        (acc) => categoryIds.includes(toNumber(acc.categoryId)) && 
-                 authorIds.includes(toNumber(acc.authorId)) &&
-                 acc.categoryId !== 0 && 
-                 acc.authorId !== 0
+        (acc) =>
+          categoryIds.includes(toNumber(acc.categoryId)) &&
+          authorIds.includes(toNumber(acc.authorId)) &&
+          acc.categoryId !== 0 &&
+          acc.authorId !== 0,
       );
 
-      const categoriesWithAccordions: CategoryWithAccordions[] = categoriesData.map((category) => ({
-        ...category,
-        id: toNumber(category.id),
-        accordions: validAccordions
-          .filter((acc) => toNumber(acc.categoryId) === toNumber(category.id))
-          .map((acc) => ({
-            ...acc,
-            id: toNumber(acc.id),
-            categoryId: toNumber(acc.categoryId),
-            authorId: toNumber(acc.authorId),
-          })),
-      }));
+      const categoriesWithAccordions: CategoryWithAccordions[] =
+        categoriesData.map((category) => ({
+          ...category,
+          id: toNumber(category.id),
+          accordions: validAccordions
+            .filter((acc) => toNumber(acc.categoryId) === toNumber(category.id))
+            .map((acc) => ({
+              ...acc,
+              id: toNumber(acc.id),
+              categoryId: toNumber(acc.categoryId),
+              authorId: toNumber(acc.authorId),
+            })),
+        }));
 
       const authors: Author[] = authorsData.map((author) => ({
         ...author,
@@ -145,7 +167,9 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
       setData({ categories: categoriesWithAccordions, authors });
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-      toast.error("Erro ao carregar dados. Verifique se o servidor está rodando.");
+      toast.error(
+        "Erro ao carregar dados. Verifique se o servidor está rodando.",
+      );
       setData({ categories: [], authors: [] });
     } finally {
       setLoading(false);
@@ -170,16 +194,16 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
           accordions: category.accordions.filter(
             (accordion) =>
               accordion.title.toLowerCase().includes(query.toLowerCase()) ||
-              accordion.content.toLowerCase().includes(query.toLowerCase())
+              accordion.content.toLowerCase().includes(query.toLowerCase()),
           ),
         }))
         .filter(
           (category) =>
             category.name.toLowerCase().includes(query.toLowerCase()) ||
-            category.accordions.length > 0
+            category.accordions.length > 0,
         );
     },
-    [data.categories]
+    [data.categories],
   );
 
   const addAccordion = useCallback(
@@ -212,7 +236,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [loadData]
+    [loadData],
   );
 
   const removeAccordion = useCallback(
@@ -220,9 +244,12 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
       try {
         const numAccordionId = toNumber(accordionId);
 
-        const response = await fetch(`${API_URL}/accordions/${numAccordionId}`, {
-          method: "DELETE",
-        });
+        const response = await fetch(
+          `${API_URL}/accordions/${numAccordionId}`,
+          {
+            method: "DELETE",
+          },
+        );
 
         if (!response.ok) {
           throw new Error(`Erro ao remover item: ${response.status}`);
@@ -234,11 +261,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [loadData]
+    [loadData],
   );
 
   const updateAccordion = useCallback(
-    async (accordionId: number, updates: Partial<Omit<Accordion, "id" | "createdAt">>) => {
+    async (
+      accordionId: number,
+      updates: Partial<Omit<Accordion, "id" | "createdAt">>,
+    ) => {
       try {
         const numAccordionId = toNumber(accordionId);
 
@@ -253,16 +283,25 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         const updatedAccordion = {
           ...currentAccordion,
           ...updates,
-          categoryId: updates.categoryId !== undefined ? toNumber(updates.categoryId) : currentAccordion.categoryId,
-          authorId: updates.authorId !== undefined ? toNumber(updates.authorId) : currentAccordion.authorId,
+          categoryId:
+            updates.categoryId !== undefined
+              ? toNumber(updates.categoryId)
+              : currentAccordion.categoryId,
+          authorId:
+            updates.authorId !== undefined
+              ? toNumber(updates.authorId)
+              : currentAccordion.authorId,
           id: numAccordionId,
         };
 
-        const response = await fetch(`${API_URL}/accordions/${numAccordionId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedAccordion),
-        });
+        const response = await fetch(
+          `${API_URL}/accordions/${numAccordionId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedAccordion),
+          },
+        );
 
         if (!response.ok) {
           throw new Error(`Erro ao atualizar item: ${response.status}`);
@@ -274,14 +313,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [data.categories, loadData]
+    [data.categories, loadData],
   );
 
   const addCategory = useCallback(
     async (category: Omit<Category, "id" | "createdAt">) => {
       try {
         const exists = data.categories.some(
-          (c) => c.name.toLowerCase() === category.name.toLowerCase()
+          (c) => c.name.toLowerCase() === category.name.toLowerCase(),
         );
 
         if (exists) {
@@ -309,7 +348,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [data.categories, loadData]
+    [data.categories, loadData],
   );
 
   const removeCategory = useCallback(
@@ -318,12 +357,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         const numCategoryId = toNumber(categoryId);
 
         const category = data.categories.find((c) => c.id === numCategoryId);
-        
+
         if (category && category.accordions.length > 0) {
           const deletePromises = category.accordions.map((accordion) =>
-            fetch(`${API_URL}/accordions/${accordion.id}`, { method: "DELETE" })
+            fetch(`${API_URL}/accordions/${accordion.id}`, {
+              method: "DELETE",
+            }),
           );
-          
+
           await Promise.all(deletePromises);
         }
 
@@ -341,15 +382,20 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [data.categories, loadData]
+    [data.categories, loadData],
   );
 
   const updateCategory = useCallback(
-    async (categoryId: number, updates: Partial<Omit<Category, "id" | "createdAt">>) => {
+    async (
+      categoryId: number,
+      updates: Partial<Omit<Category, "id" | "createdAt">>,
+    ) => {
       try {
         const numCategoryId = toNumber(categoryId);
 
-        const currentCategory = data.categories.find((c) => c.id === numCategoryId);
+        const currentCategory = data.categories.find(
+          (c) => c.id === numCategoryId,
+        );
 
         if (!currentCategory) {
           throw new Error(`Categoria não encontrada`);
@@ -357,7 +403,9 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
 
         if (updates.name) {
           const exists = data.categories.some(
-            (c) => c.id !== numCategoryId && c.name.toLowerCase() === updates.name!.toLowerCase()
+            (c) =>
+              c.id !== numCategoryId &&
+              c.name.toLowerCase() === updates.name!.toLowerCase(),
           );
 
           if (exists) {
@@ -367,8 +415,12 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
 
         const updatedCategory = {
           id: numCategoryId,
-          name: updates.name !== undefined ? updates.name : currentCategory.name,
-          description: updates.description !== undefined ? updates.description : currentCategory.description,
+          name:
+            updates.name !== undefined ? updates.name : currentCategory.name,
+          description:
+            updates.description !== undefined
+              ? updates.description
+              : currentCategory.description,
           createdAt: currentCategory.createdAt,
         };
 
@@ -388,14 +440,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [data.categories, loadData]
+    [data.categories, loadData],
   );
 
   const addAuthor = useCallback(
     async (author: Omit<Author, "id" | "createdAt">) => {
       try {
         const exists = data.authors.some(
-          (a) => a.name.toLowerCase() === author.name.toLowerCase()
+          (a) => a.name.toLowerCase() === author.name.toLowerCase(),
         );
 
         if (exists) {
@@ -423,7 +475,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [data.authors, loadData]
+    [data.authors, loadData],
   );
 
   const getAccordionById = useCallback(
@@ -431,14 +483,61 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
       const numAccordionId = toNumber(accordionId);
 
       for (const category of data.categories) {
-        const accordion = category.accordions.find((a) => a.id === numAccordionId);
+        const accordion = category.accordions.find(
+          (a) => a.id === numAccordionId,
+        );
         if (accordion) {
           return accordion;
         }
       }
       return null;
     },
-    [data.categories]
+    [data.categories],
+  );
+
+  const togglePinCategory = useCallback(
+    async (categoryId: number) => {
+      try {
+        const numCategoryId = toNumber(categoryId);
+
+        const currentCategory = data.categories.find(
+          (c) => c.id === numCategoryId,
+        );
+
+        if (!currentCategory) {
+          throw new Error("Categoria não encontrada");
+        }
+
+        // Conta quantas categorias já estão fixadas
+        const pinnedCount = data.categories.filter((c) => c.pinned).length;
+
+        // Se está tentando fixar e já tem 3 fixadas
+        if (!currentCategory.pinned && pinnedCount >= 3) {
+          throw new Error("Você só pode fixar até 3 categorias por vez!");
+        }
+
+        const updatedCategory = {
+          ...currentCategory,
+          pinned: !currentCategory.pinned,
+        };
+
+        const response = await fetch(`${API_URL}/categories/${numCategoryId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedCategory),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erro ao atualizar categoria: ${response.status}`);
+        }
+
+        await loadData();
+      } catch (error) {
+        console.error("Erro ao fixar/desafixar categoria:", error);
+        throw error;
+      }
+    },
+    [data.categories, loadData],
   );
 
   return (
@@ -456,6 +555,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         updateCategory,
         addAuthor,
         getAccordionById,
+        togglePinCategory,
       }}
     >
       {children}
