@@ -8,10 +8,12 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAccordion } from "../context/AccordionContext";
 import ModalConfirm from "./ModalConfirm";
+import { useAdmin } from "../hooks/useAdmin";
 
 type Accordion = {
   id: number;
   categoryId: number;
+  authorId: number;
   title: string;
   content: string;
   createdAt?: string;
@@ -57,6 +59,17 @@ const Title = styled.span`
   font-size: 0.95rem;
 `;
 
+const AuthorBadge = styled.span<{ color: string }>`
+  background: ${({ color }) => color}15;
+  border: 1px solid ${({ color }) => color}40;
+  color: ${({ color }) => color};
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
 const Actions = styled.div`
   display: flex;
   gap: 8px;
@@ -100,13 +113,22 @@ const Content = styled.div`
   font-size: 0.95rem;
 `;
 
-export default function AccordionItem({ accordion }: { accordion?: Accordion }) {
-  const { removeAccordion } = useAccordion();
+export default function AccordionItem({
+  accordion,
+}: {
+  accordion?: Accordion;
+}) {
+  const { removeAccordion, data } = useAccordion();
+  const { isAdmin } = useAdmin();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   if (!accordion) return null;
+
+  const author = data.authors.find((a) => a.id === accordion.authorId);
+  const authorName = author?.name || "Desconhecido";
+  const authorColor = author?.color || "#64748b";
 
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
@@ -139,7 +161,9 @@ export default function AccordionItem({ accordion }: { accordion?: Accordion }) 
         transition={{ type: "spring", stiffness: 300 }}
       >
         <Header open={open} onClick={() => setOpen(!open)}>
-          <Title>{accordion.title}</Title>
+          <Title>{accordion.title} </Title>
+
+          <AuthorBadge color={authorColor}>{authorName}</AuthorBadge>
 
           <Actions onClick={(e) => e.stopPropagation()}>
             <IconButton
@@ -155,31 +179,34 @@ export default function AccordionItem({ accordion }: { accordion?: Accordion }) 
               <FiCopy size={16} />
             </IconButton>
 
-            <IconButton
-              onClick={handleEdit}
-              title="Editar"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              style={{
-                borderColor: "rgba(59, 130, 246, 0.15)",
-                color: "#2563eb",
-              }}
-            >
-              <FiEdit2 size={16} />
-            </IconButton>
-
-            <IconButton
-              onClick={handleDeleteClick}
-              title="Remover"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              style={{
-                borderColor: "rgba(244, 67, 54, 0.15)",
-                color: "#b91c1c",
-              }}
-            >
-              <FiTrash2 size={16} />
-            </IconButton>
+            {isAdmin && (
+              <>
+                <IconButton
+                  onClick={handleEdit}
+                  title="Editar"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  style={{
+                    borderColor: "rgba(59, 130, 246, 0.15)",
+                    color: "#2563eb",
+                  }}
+                >
+                  <FiEdit2 size={16} />
+                </IconButton>
+                <IconButton
+                  onClick={handleDeleteClick}
+                  title="Remover"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  style={{
+                    borderColor: "rgba(244, 67, 54, 0.15)",
+                    color: "#b91c1c",
+                  }}
+                >
+                  <FiTrash2 size={16} />
+                </IconButton>
+              </>
+            )}
           </Actions>
 
           <ChevronIcon

@@ -468,7 +468,15 @@ export default function Home() {
               transition={{ type: "spring", stiffness: 300 }}
             >
               <StatValue>{totalAccordions}</StatValue>
-              <StatLabel>Total de cartelas</StatLabel>
+              <StatLabel>Total de itens</StatLabel>
+            </StatCard>
+
+            <StatCard
+              whileHover={{ y: -4 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <StatValue>{data.authors.length}</StatValue>
+              <StatLabel>Autores</StatLabel>
             </StatCard>
           </StatsBar>
         </Header>

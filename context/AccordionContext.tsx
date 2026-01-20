@@ -8,10 +8,12 @@ import {
   useEffect,
   useCallback,
 } from "react";
+import { toast } from "react-toastify";
 
 type Accordion = {
   id: number;
   categoryId: number;
+  authorId: number;
   title: string;
   content: string;
   createdAt?: string;
@@ -24,12 +26,20 @@ type Category = {
   createdAt?: string;
 };
 
+type Author = {
+  id: number;
+  name: string;
+  color: string;
+  createdAt?: string;
+};
+
 type CategoryWithAccordions = Category & {
   accordions: Accordion[];
 };
 
 type Data = {
   categories: CategoryWithAccordions[];
+  authors: Author[];
 };
 
 type AccordionContextType = {
@@ -43,6 +53,7 @@ type AccordionContextType = {
   addCategory: (category: Omit<Category, "id" | "createdAt">) => Promise<void>;
   removeCategory: (categoryId: number) => Promise<void>;
   updateCategory: (categoryId: number, updates: Partial<Omit<Category, "id" | "createdAt">>) => Promise<void>;
+  addAuthor: (author: Omit<Author, "id" | "createdAt">) => Promise<void>;
   getAccordionById: (accordionId: number) => Accordion | null;
 };
 
@@ -59,42 +70,83 @@ function toNumber(id: any): number {
   return 0;
 }
 
+async function cleanInvalidAccordions(accordions: Accordion[], categoryIds: number[], authorIds: number[]): Promise<void> {
+  const invalidAccordions = accordions.filter(
+    (acc) => !categoryIds.includes(acc.categoryId) || !authorIds.includes(acc.authorId) || acc.categoryId === 0 || acc.authorId === 0
+  );
+
+  if (invalidAccordions.length > 0) {
+    console.warn(`🧹 Limpando ${invalidAccordions.length} accordions inválidos...`);
+    
+    await Promise.all(
+      invalidAccordions.map(async (acc) => {
+        try {
+          await fetch(`${API_URL}/accordions/${acc.id}`, { method: "DELETE" });
+        } catch (error) {
+          console.error(`Erro ao deletar accordion inválido ${acc.id}:`, error);
+        }
+      })
+    );
+  }
+}
+
 export function AccordionProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<Data>({ categories: [] });
+  const [data, setData] = useState<Data>({ categories: [], authors: [] });
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const [categoriesRes, accordionsRes] = await Promise.all([
+      const [categoriesRes, accordionsRes, authorsRes] = await Promise.all([
         fetch(`${API_URL}/categories`),
         fetch(`${API_URL}/accordions`),
+        fetch(`${API_URL}/authors`),
       ]);
 
-      if (!categoriesRes.ok || !accordionsRes.ok) {
+      if (!categoriesRes.ok || !accordionsRes.ok || !authorsRes.ok) {
         throw new Error("Erro ao carregar dados da API");
       }
 
       const categoriesData: Category[] = await categoriesRes.json();
       const accordionsData: Accordion[] = await accordionsRes.json();
+      const authorsData: Author[] = await authorsRes.json();
+
+      const categoryIds = categoriesData.map((c) => toNumber(c.id));
+      const authorIds = authorsData.map((a) => toNumber(a.id));
+
+      await cleanInvalidAccordions(accordionsData, categoryIds, authorIds);
+
+      const validAccordions = accordionsData.filter(
+        (acc) => categoryIds.includes(toNumber(acc.categoryId)) && 
+                 authorIds.includes(toNumber(acc.authorId)) &&
+                 acc.categoryId !== 0 && 
+                 acc.authorId !== 0
+      );
 
       const categoriesWithAccordions: CategoryWithAccordions[] = categoriesData.map((category) => ({
         ...category,
         id: toNumber(category.id),
-        accordions: accordionsData
+        accordions: validAccordions
           .filter((acc) => toNumber(acc.categoryId) === toNumber(category.id))
           .map((acc) => ({
             ...acc,
             id: toNumber(acc.id),
             categoryId: toNumber(acc.categoryId),
+            authorId: toNumber(acc.authorId),
           })),
       }));
 
-      setData({ categories: categoriesWithAccordions });
+      const authors: Author[] = authorsData.map((author) => ({
+        ...author,
+        id: toNumber(author.id),
+      }));
+
+      setData({ categories: categoriesWithAccordions, authors });
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
-      setData({ categories: [] });
+      toast.error("Erro ao carregar dados. Verifique se o servidor está rodando.");
+      setData({ categories: [], authors: [] });
     } finally {
       setLoading(false);
     }
@@ -133,9 +185,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
   const addAccordion = useCallback(
     async (accordion: Omit<Accordion, "id" | "createdAt">) => {
       try {
+        if (!accordion.categoryId || !accordion.authorId) {
+          throw new Error("Categoria e autor são obrigatórios");
+        }
+
         const newAccordion = {
           ...accordion,
           categoryId: toNumber(accordion.categoryId),
+          authorId: toNumber(accordion.authorId),
           createdAt: new Date().toISOString(),
         };
 
@@ -146,7 +203,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         });
 
         if (!response.ok) {
-          throw new Error(`Erro ao adicionar accordion: ${response.status}`);
+          throw new Error(`Erro ao adicionar item: ${response.status}`);
         }
 
         await loadData();
@@ -168,7 +225,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         });
 
         if (!response.ok) {
-          throw new Error(`Erro ao remover accordion: ${response.status}`);
+          throw new Error(`Erro ao remover item: ${response.status}`);
         }
 
         await loadData();
@@ -190,13 +247,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
           .find((a) => a.id === numAccordionId);
 
         if (!currentAccordion) {
-          throw new Error(`Accordion ${numAccordionId} não encontrado`);
+          throw new Error(`Item não encontrado`);
         }
 
         const updatedAccordion = {
           ...currentAccordion,
           ...updates,
           categoryId: updates.categoryId !== undefined ? toNumber(updates.categoryId) : currentAccordion.categoryId,
+          authorId: updates.authorId !== undefined ? toNumber(updates.authorId) : currentAccordion.authorId,
           id: numAccordionId,
         };
 
@@ -207,7 +265,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         });
 
         if (!response.ok) {
-          throw new Error(`Erro ao atualizar accordion: ${response.status}`);
+          throw new Error(`Erro ao atualizar item: ${response.status}`);
         }
 
         await loadData();
@@ -222,6 +280,14 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
   const addCategory = useCallback(
     async (category: Omit<Category, "id" | "createdAt">) => {
       try {
+        const exists = data.categories.some(
+          (c) => c.name.toLowerCase() === category.name.toLowerCase()
+        );
+
+        if (exists) {
+          throw new Error("Já existe uma categoria com este nome");
+        }
+
         const newCategory = {
           ...category,
           createdAt: new Date().toISOString(),
@@ -243,7 +309,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [loadData]
+    [data.categories, loadData]
   );
 
   const removeCategory = useCallback(
@@ -252,8 +318,13 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         const numCategoryId = toNumber(categoryId);
 
         const category = data.categories.find((c) => c.id === numCategoryId);
+        
         if (category && category.accordions.length > 0) {
-          throw new Error("Não é possível excluir uma categoria com itens");
+          const deletePromises = category.accordions.map((accordion) =>
+            fetch(`${API_URL}/accordions/${accordion.id}`, { method: "DELETE" })
+          );
+          
+          await Promise.all(deletePromises);
         }
 
         const response = await fetch(`${API_URL}/categories/${numCategoryId}`, {
@@ -281,7 +352,17 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         const currentCategory = data.categories.find((c) => c.id === numCategoryId);
 
         if (!currentCategory) {
-          throw new Error(`Categoria ${numCategoryId} não encontrada`);
+          throw new Error(`Categoria não encontrada`);
+        }
+
+        if (updates.name) {
+          const exists = data.categories.some(
+            (c) => c.id !== numCategoryId && c.name.toLowerCase() === updates.name!.toLowerCase()
+          );
+
+          if (exists) {
+            throw new Error("Já existe uma categoria com este nome");
+          }
         }
 
         const updatedCategory = {
@@ -308,6 +389,41 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
       }
     },
     [data.categories, loadData]
+  );
+
+  const addAuthor = useCallback(
+    async (author: Omit<Author, "id" | "createdAt">) => {
+      try {
+        const exists = data.authors.some(
+          (a) => a.name.toLowerCase() === author.name.toLowerCase()
+        );
+
+        if (exists) {
+          throw new Error("Já existe um autor com este nome");
+        }
+
+        const newAuthor = {
+          ...author,
+          createdAt: new Date().toISOString(),
+        };
+
+        const response = await fetch(`${API_URL}/authors`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newAuthor),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erro ao adicionar autor: ${response.status}`);
+        }
+
+        await loadData();
+      } catch (error) {
+        console.error("Erro ao adicionar autor:", error);
+        throw error;
+      }
+    },
+    [data.authors, loadData]
   );
 
   const getAccordionById = useCallback(
@@ -338,6 +454,7 @@ export function AccordionProvider({ children }: { children: ReactNode }) {
         addCategory,
         removeCategory,
         updateCategory,
+        addAuthor,
         getAccordionById,
       }}
     >

@@ -1,4 +1,4 @@
-// File: C:\trabalhos\freela\Tabela_de_informa-oes_accordion\app\layout.tsx
+// File: C:\Trabalho\Pessoal\Tabela_de_informa-oes_accordion\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -2,7 +2,7 @@
 
 import styled from "styled-components";
 import { motion } from "framer-motion";
-import { FiFolder, FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiFolder, FiPlus, FiEdit2, FiTrash2, FiCopy } from "react-icons/fi";
 import AccordionItem from "./AccordionItem";
 import Link from "next/link";
 import { useAdmin } from "../hooks/useAdmin";
@@ -14,6 +14,7 @@ import { useAccordion } from "../context/AccordionContext";
 type Accordion = {
   id: number;
   categoryId: number;
+  authorId: number;
   title: string;
   content: string;
   createdAt?: string;
@@ -63,6 +64,7 @@ const IconWrapper = styled.div`
   justify-content: center;
   color: white;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
 `;
 
 const CategoryInfo = styled.div`
@@ -70,6 +72,7 @@ const CategoryInfo = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 `;
 
 const CategoryName = styled.h3`
@@ -77,21 +80,35 @@ const CategoryName = styled.h3`
   font-weight: 700;
   color: #1e3a8a;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
-const EditableCategoryName = styled.input`
+const EditWrapper = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(239, 246, 255, 0.8);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 8px 12px;
+`;
+
+const EditInput = styled.input`
+  flex: 1;
   font-size: 1.3rem;
   font-weight: 700;
   color: #1e3a8a;
-  flex: 1;
-  border: 2px solid #3b82f6;
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  background: transparent;
+  outline: none;
+  min-width: 0;
 
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  &::placeholder {
+    color: #94a3b8;
   }
 `;
 
@@ -102,76 +119,71 @@ const Badge = styled.span`
   border-radius: 100px;
   font-size: 0.85rem;
   font-weight: 600;
+  flex-shrink: 0;
 `;
 
-const AdminActions = styled.div`
+const Actions = styled.div`
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
 `;
 
-const AdminButton = styled(motion.button)<{ variant?: "danger" }>`
-  background: ${({ variant }) =>
-    variant === "danger" ? "rgba(239, 68, 68, 0.1)" : "rgba(59, 130, 246, 0.1)"};
+const ActionButton = styled(motion.button)<{
+  variant?: "edit" | "delete" | "save" | "cancel";
+}>`
+  background: ${({ variant }) => {
+    if (variant === "save")
+      return "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+    if (variant === "cancel") return "rgba(100, 116, 139, 0.1)";
+    if (variant === "delete") return "rgba(239, 68, 68, 0.1)";
+    return "rgba(59, 130, 246, 0.1)";
+  }};
   border: 1px solid
-    ${({ variant }) =>
-      variant === "danger" ? "rgba(239, 68, 68, 0.3)" : "rgba(59, 130, 246, 0.3)"};
-  color: ${({ variant }) => (variant === "danger" ? "#dc2626" : "#2563eb")};
-  padding: 8px;
+    ${({ variant }) => {
+      if (variant === "save") return "transparent";
+      if (variant === "cancel") return "rgba(100, 116, 139, 0.3)";
+      if (variant === "delete") return "rgba(239, 68, 68, 0.3)";
+      return "rgba(59, 130, 246, 0.3)";
+    }};
+  color: ${({ variant }) => {
+    if (variant === "save") return "#ffffff";
+    if (variant === "cancel") return "#64748b";
+    if (variant === "delete") return "#dc2626";
+    return "#2563eb";
+  }};
+  padding: ${({ variant }) =>
+    variant === "save" || variant === "cancel" ? "8px 16px" : "8px"};
   border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
   transition: all 0.3s;
+  white-space: nowrap;
 
   &:hover {
-    background: ${({ variant }) =>
-      variant === "danger" ? "rgba(239, 68, 68, 0.2)" : "rgba(59, 130, 246, 0.2)"};
+    background: ${({ variant }) => {
+      if (variant === "save")
+        return "linear-gradient(135deg, #059669 0%, #047857 100%)";
+      if (variant === "cancel") return "rgba(100, 116, 139, 0.2)";
+      if (variant === "delete") return "rgba(239, 68, 68, 0.2)";
+      return "rgba(59, 130, 246, 0.2)";
+    }};
+    transform: translateY(-1px);
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-`;
-
-const SaveButton = styled(motion.button)`
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  padding: 6px 16px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-
-  &:hover {
-    opacity: 0.9;
+    transform: none;
   }
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const CancelButton = styled(motion.button)`
-  background: rgba(100, 116, 139, 0.1);
-  color: #64748b;
-  padding: 6px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(100, 116, 139, 0.3);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-
-  &:hover {
-    background: rgba(100, 116, 139, 0.2);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  &:active {
+    transform: scale(0.98);
   }
 `;
 
@@ -248,6 +260,11 @@ export default function CategoryCard({ category }: { category: Category }) {
       return;
     }
 
+    if (editedName.trim() === category.name) {
+      setIsEditing(false);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -268,17 +285,15 @@ export default function CategoryCard({ category }: { category: Category }) {
   };
 
   const handleDelete = async () => {
-    if (category.accordions.length > 0) {
-      toast.error("Não é possível excluir uma categoria com itens. Remova os itens primeiro.");
-      setShowDeleteModal(false);
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       await removeCategory(category.id);
-      toast.success("Categoria excluída com sucesso!");
+      toast.success(
+        hasAccordions
+          ? `Categoria "${category.name}" e todos os ${category.accordions.length} itens excluídos com sucesso!`
+          : "Categoria excluída com sucesso!",
+      );
       setShowDeleteModal(false);
     } catch (error: any) {
       console.error("Erro ao excluir categoria:", error);
@@ -301,68 +316,81 @@ export default function CategoryCard({ category }: { category: Category }) {
             <FiFolder size={20} />
           </IconWrapper>
 
-          <CategoryInfo>
-            {isEditing ? (
-              <>
-                <EditableCategoryName
-                  type="text"
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSave();
-                    if (e.key === "Escape") handleCancel();
-                  }}
-                  disabled={isLoading}
-                  autoFocus
-                />
-                <SaveButton
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {isLoading ? "..." : "Salvar"}
-                </SaveButton>
-                <CancelButton
-                  onClick={handleCancel}
-                  disabled={isLoading}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Cancelar
-                </CancelButton>
-              </>
-            ) : (
+          {isEditing ? (
+            <EditWrapper>
+              <EditInput
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSave();
+                  if (e.key === "Escape") handleCancel();
+                }}
+                disabled={isLoading}
+                autoFocus
+                placeholder="Nome da categoria"
+              />
+            </EditWrapper>
+          ) : (
+            <CategoryInfo>
               <CategoryName>{category.name}</CategoryName>
-            )}
-          </CategoryInfo>
+            </CategoryInfo>
+          )}
 
           <Badge>{category.accordions.length}</Badge>
-
-          {isAdmin && !isEditing && (
-            <AdminActions>
-              <AdminButton
-                onClick={handleEdit}
-                disabled={isLoading}
-                title="Editar categoria"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <FiEdit2 size={16} />
-              </AdminButton>
-              <AdminButton
-                variant="danger"
-                onClick={() => setShowDeleteModal(true)}
-                disabled={isLoading}
-                title="Excluir categoria"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <FiTrash2 size={16} />
-              </AdminButton>
-            </AdminActions>
-          )}
         </Header>
+
+        <div>
+          {isAdmin && (
+            <Actions>
+              {isEditing ? (
+                <>
+                  <ActionButton
+                    variant="save"
+                    onClick={handleSave}
+                    disabled={isLoading}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Salvar
+                  </ActionButton>
+                  <ActionButton
+                    variant="cancel"
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Cancelar
+                  </ActionButton>
+                </>
+              ) : (
+                <>
+                  <ActionButton
+                    variant="edit"
+                    onClick={handleEdit}
+                    disabled={isLoading}
+                    title="Editar categoria"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FiEdit2 size={16} />
+                  </ActionButton>
+                  <ActionButton
+                    variant="delete"
+                    onClick={() => setShowDeleteModal(true)}
+                    disabled={isLoading}
+                    title="Excluir categoria"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FiTrash2 size={16} />
+                  </ActionButton>
+                </>
+              )}
+            </Actions>
+          )}
+        </div>
 
         {hasAccordions ? (
           <AccordionList>
@@ -385,9 +413,11 @@ export default function CategoryCard({ category }: { category: Category }) {
       <ModalConfirm
         open={showDeleteModal}
         title="Confirmar exclusão"
-        description={`Deseja realmente excluir a categoria "${category.name}"?${
-          category.accordions.length > 0 ? " Atenção: Esta categoria possui itens!" : ""
-        }`}
+        description={
+          hasAccordions
+            ? `Deseja realmente excluir a categoria "${category.name}" e TODOS os ${category.accordions.length} itens dentro dela? Esta ação não pode ser desfeita!`
+            : `Deseja realmente excluir a categoria "${category.name}"?`
+        }
         onConfirm={handleDelete}
         onClose={() => setShowDeleteModal(false)}
       />
