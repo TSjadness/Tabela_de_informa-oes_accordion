@@ -1,0 +1,60 @@
+{
+  "categories": [
+    {
+      "id": 1,
+      "name": "Introdução",
+      "description": "Conceitos iniciais do sistema",
+      "createdAt": "2026-01-01T10:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "Configuração",
+      "description": "Passos de configuração e setup",
+      "createdAt": "2026-01-02T10:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "name": "Avançado",
+      "description": "Tópicos avançados e boas práticas",
+      "createdAt": "2026-01-03T10:00:00.000Z"
+    }
+  ],
+
+  "accordions": [
+    {
+      "id": 1,
+      "categoryId": 1,
+      "title": "O que é o sistema?",
+      "content": "Este sistema foi criado para organizar informações em formato de accordions.",
+      "createdAt": "2026-01-05T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "categoryId": 1,
+      "title": "Para quem é?",
+      "content": "Destinado a desenvolvedores que precisam de uma base de conhecimento organizada.",
+      "createdAt": "2026-01-05T12:10:00.000Z"
+    },
+    {
+      "id": 3,
+      "categoryId": 2,
+      "title": "Instalação",
+      "content": "Execute npm install e depois npm run dev para iniciar o projeto.",
+      "createdAt": "2026-01-06T09:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "categoryId": 2,
+      "title": "Variáveis de ambiente",
+      "content": "Configure corretamente o arquivo .env antes de rodar a aplicação.",
+      "createdAt": "2026-01-06T09:20:00.000Z"
+    },
+    {
+      "id": 5,
+      "categoryId": 3,
+      "title": "Performance",
+      "content": "Utilize memoização e divisão de código para melhorar performance.",
+      "createdAt": "2026-01-07T15:00:00.000Z"
+    }
+  ]
+}
